@@ -1,44 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 
-void main() {
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
+class IPAddressScreen extends StatefulWidget {
+  const IPAddressScreen({super.key});
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: MyHomePage(),
-    );
-  }
+  _IPAddressScreenState createState() => _IPAddressScreenState();
 }
 
-class MyHomePage extends StatefulWidget {
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  String ipAddress = 'Fetching IP Address...';
+class _IPAddressScreenState extends State<IPAddressScreen> {
+  String ipAddress = 'Loading...';
 
   @override
   void initState() {
     super.initState();
-    getIpAddress();
+    fetchIPAddress();
   }
 
-  Future<void> getIpAddress() async {
-    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    if (Theme.of(context).platform == TargetPlatform.android) {
-      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+  Future<void> fetchIPAddress() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+
+    if (connectivityResult == ConnectivityResult.mobile ||
+        connectivityResult == ConnectivityResult.wifi) {
+      final dio = Dio();
+      final response = await dio.get('https://api64.ipify.org?format=json');
+
+      if (response.statusCode == 200) {
+        setState(() {
+          ipAddress = response.data['ip'];
+        });
+      }
+    } else {
       setState(() {
-        ipAddress = androidInfo.androidId;
-      });
-    } else if (Theme.of(context).platform == TargetPlatform.iOS) {
-      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      setState(() {
-        ipAddress = iosInfo.identifierForVendor;
+        ipAddress = 'No network connection';
       });
     }
   }
@@ -47,27 +41,17 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Phone Details'),
+        title: const Text('IP Address Example'),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'IP Address:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              ipAddress,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
+        child: Text('Your IP Address: $ipAddress'),
       ),
     );
   }
+}
+
+void main() {
+  runApp(MaterialApp(
+    home: IPAddressScreen(),
+  ));
 }
